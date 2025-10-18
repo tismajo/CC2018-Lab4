@@ -1,88 +1,85 @@
+// main.rs
+#![allow(unused_imports)]
 mod framebuffer;
 mod line;
-mod maze;
-mod caster;
-mod player;
-mod input;
-mod renderer;
-mod intersect;
-mod textures;
+mod obj_loader;
 
-use crate::framebuffer::Framebuffer;
-use crate::player::Player;
-use crate::maze::{find_player_start, load_maze, print_maze};
-use crate::input::process_events;
-use crate::renderer::{render_world_2d, render_world_3d};
-use crate::textures::TextureManager;
 use raylib::prelude::*;
+use framebuffer::Framebuffer;
+use line::line;
+use obj_loader::ObjModel;
+use std::f32::consts::PI;
+
+fn project_vertex(v: &Vector3, width: f32, height: f32, scale: f32) -> Vector2 {
+    // Proyección simple en perspectiva
+    let fov = 1.0 / (v.z + 3.0); // +3 evita división por 0
+    let x = width / 2.0 + v.x * scale * fov * width / 2.0;
+    let y = height / 2.0 - v.y * scale * fov * height / 2.0;
+    Vector2::new(x, y)
+}
 
 fn main() {
-    // Configuración de resolución global
-    const WINDOW_WIDTH: i32 = 500;
-    const WINDOW_HEIGHT: i32 = 500;
-    const BLOCK_SIZE: usize = 10;  // Reducido de 20 a 10 para que quepa mejor
-    
-    // Cargar laberinto desde archivo primero
-    let maze = load_maze("maze.txt");
-    println!("Laberinto cargado:");
-    print_maze(&maze);
-    
-    // Encontrar posición inicial del jugador (ajustando al nuevo block_size)
-    let (start_x, start_y) = find_player_start(&maze, BLOCK_SIZE)
-        .expect("No se encontró posición inicial del jugador (carácter 'P' o 'p')");
-    
-    let mut player = Player::new(start_x, start_y);
-    
-    // Inicializar ventana
-    let (mut rl, thread) = raylib::init()
-        .size(WINDOW_WIDTH, WINDOW_HEIGHT)
-        .title("OFF (The 3D version)")
+    let (mut window, thread) = raylib::init()
+        .size(800, 600)
+        .title("Wireframe Renderer - OBJ Viewer")
         .build();
-    
-    rl.set_target_fps(60);
-    
-    // Cargar el TextureManager UNA SOLA VEZ fuera del loop
-    let texture_manager = TextureManager::new(&mut rl, &thread);
-    println!("TextureManager inicializado con {} texturas", 
-                if texture_manager.is_initialized() { "éxito" } else { "fallback" });
-    
-    let mut mode = "2D"; // Modo inicial
-    
-    while !rl.window_should_close() {
-        // Cambiar modo con la tecla M
-        if rl.is_key_pressed(KeyboardKey::KEY_M) {
-            mode = if mode == "2D" { "3D" } else { "2D" };
-            println!("Cambiando a modo: {}", mode);
+
+    let mut fb = Framebuffer::new(800, 600, Color::new(10, 10, 40, 255));
+
+    // 🔹 Carga del modelo .obj exportado desde Blender
+    let model = ObjModel::load("nave.obj").expect("No se pudo cargar el modelo");
+
+    println!("Modelo cargado: {} vértices, {} caras", model.vertices.len(), model.faces.len());
+
+    let mut angle_x = 0.0f32;
+    let mut angle_y = 0.0f32;
+    let mut scale = 1.0;
+
+    window.set_target_fps(60);
+
+    while !window.window_should_close() {
+        fb.clear();
+
+        // Controles
+        if window.is_key_down(KeyboardKey::KEY_RIGHT) { angle_y += 1.0 * 0.02; }
+        if window.is_key_down(KeyboardKey::KEY_LEFT) { angle_y -= 1.0 * 0.02; }
+        if window.is_key_down(KeyboardKey::KEY_UP) { angle_x += 1.0 * 0.02; }
+        if window.is_key_down(KeyboardKey::KEY_DOWN) { angle_x -= 1.0 * 0.02; }
+        if window.is_key_down(KeyboardKey::KEY_Q) { scale *= 1.02; }
+        if window.is_key_down(KeyboardKey::KEY_E) { scale /= 1.02; }
+
+        // Rotación de vértices
+        let rotated: Vec<Vector3> = model.vertices.iter().map(|v| {
+            let mut vx = v.x;
+            let mut vy = v.y;
+            let mut vz = v.z;
+
+            // Rotación en X
+            let ry = vy * angle_x.cos() - vz * angle_x.sin();
+            let rz = vy * angle_x.sin() + vz * angle_x.cos();
+            vy = ry; vz = rz;
+
+            // Rotación en Y
+            let rx = vx * angle_y.cos() + vz * angle_y.sin();
+            let rz = -vx * angle_y.sin() + vz * angle_y.cos();
+            vx = rx; vz = rz;
+
+            Vector3::new(vx, vy, vz)
+        }).collect();
+
+        fb.set_current_color(Color::WHITE);
+
+        // Dibujar aristas (wireframe)
+        for face in &model.faces {
+            let mut points_2d = Vec::new();
+            for &idx in face {
+                let v = &rotated[idx];
+                let p2d = project_vertex(v, fb.width as f32, fb.height as f32, scale);
+                points_2d.push(p2d);
+            }
+            line::draw_polygon(&mut fb, &points_2d);
         }
-        
-        // Procesar eventos de input (pasando el block_size correcto)
-        process_events(&rl, &mut player, &maze, BLOCK_SIZE);
-        
-        // Crear framebuffer con resolución fija
-        let mut fb = Framebuffer::new_buffer(
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            Color::BLACK,
-        );
-        
-        // Renderizar según el modo actual
-        if mode == "2D" {
-            render_world_2d(&mut fb, &maze, &player, BLOCK_SIZE);
-        } else {
-            render_world_3d(&mut fb, &maze, &player, BLOCK_SIZE, &texture_manager);
-        }
-        
-        // Convertir framebuffer a textura
-        let texture = rl.load_texture_from_image(&thread, &fb.buffer).unwrap();
-        let fps = rl.get_fps();
-        
-        let mut d = rl.begin_drawing(&thread);
-        d.clear_background(Color::BLACK);
-        d.draw_texture(&texture, 0, 0, Color::WHITE);
-        d.draw_text(&format!("Pos: ({:.1}, {:.1})", player.pos.x, player.pos.y), 10, 10, 20, Color::WHITE);
-        d.draw_text(&format!("Angle: {:.2} rad", player.a), 10, 30, 20, Color::WHITE);
-        d.draw_text(&format!("FOV: {:.2} rad", player.fov), 10, 50, 20, Color::WHITE);
-        d.draw_text(&format!("Mode: {} (Press M to toggle)", mode), 10, 70, 20, Color::WHITE);
-        d.draw_text(&format!("FPS: {}", fps), 10, 90, 20, Color::WHITE);
+
+        fb.swap_buffers(&mut window, &thread);
     }
 }
