@@ -3,6 +3,8 @@
 mod framebuffer;
 mod line;
 mod obj_loader;
+mod shader;
+mod triangle;
 
 use raylib::prelude::*;
 use framebuffer::Framebuffer;
@@ -69,15 +71,15 @@ fn main() {
 
         fb.set_current_color(Color::WHITE);
 
-        // Dibujar aristas (wireframe)
+        // Dibujar modelo con shader
         for face in &model.faces {
-            let mut points_2d = Vec::new();
-            for &idx in face {
-                let v = &rotated[idx];
-                let p2d = project_vertex(v, fb.width as f32, fb.height as f32, scale);
-                points_2d.push(p2d);
-            }
-            line::draw_polygon(&mut fb, &points_2d);
+            if face.len() < 3 { continue; }
+
+            let v0 = rotated[face[0]];
+            let v1 = rotated[face[1]];
+            let v2 = rotated[face[2]];
+
+            triangle::draw_filled_triangle(&mut fb, v0, v1, v2);
         }
 
         fb.swap_buffers(&mut window, &thread);
