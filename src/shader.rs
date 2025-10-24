@@ -1,26 +1,26 @@
 // shader.rs
 // ------------------------------------------------------------
-// "Shader" por software: patrón checker (blanco y negro)
+// Shader arcoíris (rojo → naranja → amarillo → verde)
 // ------------------------------------------------------------
 use raylib::prelude::*;
 
-pub fn checker_shader(pos: &Vector3) -> Color {
-    // Escala del patrón (cuán grande o pequeño es el cuadriculado)
-    let scale = 5.0;
+pub fn rainbow_shader(pos: &Vector3) -> Color {
+    // Normalizamos Y al rango [0,1]
+    let t = ((pos.y + 1.0) / 2.0).clamp(0.0, 1.0);
 
-    // Convertimos coordenadas a un patrón 3D
-    let v = (
-        (pos.x * scale).floor() as i32,
-        (pos.y * scale).floor() as i32,
-        (pos.z * scale).floor() as i32,
-    );
-
-    // Checker 3D: alterna color según paridad de la suma
-    let parity = (v.0 + v.1 + v.2) & 1;
-
-    if parity == 0 {
-        Color::WHITE
+    let (r, g, b) = if t < 0.33 {
+        // Rojo → Naranja
+        let u = t / 0.33;
+        (255, (64.0 + 64.0 * u) as u8, 0)
+    } else if t < 0.66 {
+        // Naranja → Amarillo
+        let u = (t - 0.33) / 0.33;
+        (255, (128.0 + 127.0 * u) as u8, 0)
     } else {
-        Color::BLACK
-    }
+        // Amarillo → Verde
+        let u = (t - 0.66) / 0.34;
+        ((255.0 * (1.0 - u)) as u8, 255, 0)
+    };
+
+    Color::new(r, g, b, 255)
 }

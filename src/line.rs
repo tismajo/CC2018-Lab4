@@ -3,7 +3,6 @@
 // Dibujo básico de líneas y polígonos en el framebuffer
 // Compatible con el renderer 3D wireframe.
 // --------------------------------------------------
-
 use raylib::prelude::*;
 use crate::framebuffer::Framebuffer;
 

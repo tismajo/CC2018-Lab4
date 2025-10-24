@@ -20,7 +20,6 @@ impl Framebuffer {
     pub fn new(width: u32, height: u32, background_color: Color) -> Self {
         let color_buffer = Image::gen_image_color(width as i32, height as i32, background_color);
         let z_buffer = vec![f32::INFINITY; (width * height) as usize];
-
         Self {
             width,
             height,
@@ -92,7 +91,6 @@ impl Framebuffer {
         if let Some(tex) = &mut self.texture {
             let pixels: Vec<Color> = self.color_buffer.get_image_data().to_vec();
             let mut raw: Vec<u8> = Vec::with_capacity(pixels.len() * 4);
-
             for c in pixels {
                 raw.push(c.r);
                 raw.push(c.g);

@@ -29,8 +29,7 @@ fn main() {
     let mut fb = Framebuffer::new(800, 600, Color::new(10, 10, 40, 255));
 
     // 🔹 Carga del modelo .obj exportado desde Blender
-    let model = ObjModel::load("nave.obj").expect("No se pudo cargar el modelo");
-
+    let model = ObjModel::load("avion.obj").expect("No se pudo cargar el modelo");
     println!("Modelo cargado: {} vértices, {} caras", model.vertices.len(), model.faces.len());
 
     let mut angle_x = 0.0f32;
@@ -70,16 +69,19 @@ fn main() {
         }).collect();
 
         fb.set_current_color(Color::WHITE);
-
-        // Dibujar modelo con shader
+        
+        // Dibuja todas las caras con el shader arcoíris
+        // Triangulamos polígonos con más de 3 vértices (método de abanico)
         for face in &model.faces {
             if face.len() < 3 { continue; }
-
-            let v0 = rotated[face[0]];
-            let v1 = rotated[face[1]];
-            let v2 = rotated[face[2]];
-
-            triangle::draw_filled_triangle(&mut fb, v0, v1, v2);
+            
+            // Triangulación en abanico desde el primer vértice
+            for i in 1..(face.len() - 1) {
+                let v0 = rotated[face[0]];
+                let v1 = rotated[face[i]];
+                let v2 = rotated[face[i + 1]];
+                triangle::draw_filled_triangle(&mut fb, v0, v1, v2);
+            }
         }
 
         fb.swap_buffers(&mut window, &thread);

@@ -20,6 +20,7 @@ impl ObjModel {
         for line in reader.lines() {
             let line = line?;
             let parts: Vec<&str> = line.split_whitespace().collect();
+
             if parts.is_empty() {
                 continue;
             }
