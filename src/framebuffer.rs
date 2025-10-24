@@ -1,8 +1,3 @@
-// framebuffer.rs
-// ------------------------------------------------------------
-// Framebuffer para renderizado por software con Raylib
-// Compatible con el wireframe 3D viewer (main.rs).
-// ------------------------------------------------------------
 use raylib::prelude::*;
 
 pub struct Framebuffer {
@@ -12,7 +7,7 @@ pub struct Framebuffer {
     pub z_buffer: Vec<f32>,
     background_color: Color,
     current_color: Color,
-    texture: Option<Texture2D>, // Textura para mostrar en GPU
+    pub texture: Option<Texture2D>, // Ahora es público
 }
 
 impl Framebuffer {
@@ -20,6 +15,7 @@ impl Framebuffer {
     pub fn new(width: u32, height: u32, background_color: Color) -> Self {
         let color_buffer = Image::gen_image_color(width as i32, height as i32, background_color);
         let z_buffer = vec![f32::INFINITY; (width * height) as usize];
+        
         Self {
             width,
             height,
@@ -78,39 +74,6 @@ impl Framebuffer {
             if let Ok(tex) = window.load_texture_from_image(thread, &self.color_buffer) {
                 self.texture = Some(tex);
             }
-        }
-    }
-
-    /// Actualiza el framebuffer en GPU y lo dibuja en pantalla
-    pub fn swap_buffers(&mut self, window: &mut RaylibHandle, thread: &RaylibThread) {
-        // Inicializar textura si no existe
-        if self.texture.is_none() {
-            self.init_texture(window, thread);
-        }
-
-        if let Some(tex) = &mut self.texture {
-            let pixels: Vec<Color> = self.color_buffer.get_image_data().to_vec();
-            let mut raw: Vec<u8> = Vec::with_capacity(pixels.len() * 4);
-            for c in pixels {
-                raw.push(c.r);
-                raw.push(c.g);
-                raw.push(c.b);
-                raw.push(c.a);
-            }
-
-            tex.update_texture_rec(
-                Rectangle {
-                    x: 0.0,
-                    y: 0.0,
-                    width: tex.width() as f32,
-                    height: tex.height() as f32,
-                },
-                &raw,
-            );
-
-            let mut d = window.begin_drawing(thread);
-            d.clear_background(Color::BLACK);
-            d.draw_texture(tex, 0, 0, Color::WHITE);
         }
     }
 
