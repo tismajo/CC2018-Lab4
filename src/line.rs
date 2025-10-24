@@ -38,18 +38,6 @@ pub fn line(framebuffer: &mut Framebuffer, start: Vector2, end: Vector2) {
     }
 }
 
-/// Dibuja un polígono conectando los puntos en orden
-///
-/// Ejemplo:
-/// ```rust
-/// let points = vec![
-///     Vector2::new(10.0, 10.0),
-///     Vector2::new(50.0, 10.0),
-///     Vector2::new(50.0, 50.0),
-///     Vector2::new(10.0, 50.0),
-/// ];
-/// draw_polygon(&mut framebuffer, &points);
-/// ```
 pub fn draw_polygon(framebuffer: &mut Framebuffer, points: &[Vector2]) {
     if points.len() < 2 {
         return;
