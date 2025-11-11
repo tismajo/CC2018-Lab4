@@ -1,9 +1,11 @@
 use raylib::prelude::*;
 use crate::framebuffer::Framebuffer;
-use crate::shader::{rocky_planet_shader, gas_giant_shader, crystal_planet_shader, lava_planet_shader, ice_planet_shader};
+use crate::shader::{star_shader}; // importamos la función del shader
 
 #[derive(Copy, Clone)]
 pub enum ShaderType {
+    Star,
+    // otras variantes pueden quedar pero no se usan
     Rocky,
     Gas,
     Crystal,
@@ -22,12 +24,12 @@ pub fn draw_filled_triangle(
     let width = framebuffer.width as f32;
     let height = framebuffer.height as f32;
     let scale = 1.0;
-    
+
     let p0 = project(&v0, width, height, scale);
     let p1 = project(&v1, width, height, scale);
     let p2 = project(&v2, width, height, scale);
 
-    // Calcular normal del triángulo
+    // Calcular normal del triángulo (tras desplazamiento ya aplica)
     let edge1 = Vector3::new(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
     let edge2 = Vector3::new(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
     let normal = edge1.cross(edge2).normalized();
@@ -38,7 +40,7 @@ pub fn draw_filled_triangle(
     let edge2_x = p2.x - p0.x;
     let edge2_y = p2.y - p0.y;
     let cross = edge1_x * edge2_y - edge1_y * edge2_x;
-    
+
     if cross <= 0.0 {
         return;
     }
@@ -67,26 +69,24 @@ pub fn draw_filled_triangle(
             if w0 >= EPSILON && w1 >= EPSILON && w2 >= EPSILON {
                 let depth = w0 * v0.z + w1 * v1.z + w2 * v2.z;
                 let idx = (y as u32 * framebuffer.width + x as u32) as usize;
-                
+
                 if depth < framebuffer.z_buffer[idx] {
                     framebuffer.z_buffer[idx] = depth;
-                    
-                    // Interpolar posición 3D
+
+                    // Interpolar posición 3D (para pasar al shader)
                     let pos = Vector3::new(
                         w0 * v0.x + w1 * v1.x + w2 * v2.x,
                         w0 * v0.y + w1 * v1.y + w2 * v2.y,
                         w0 * v0.z + w1 * v1.z + w2 * v2.z,
                     );
-                    
-                    // Aplicar shader según el tipo
+
+                    // Seleccionar shader (solo Star es necesario ahora)
                     let color = match shader_type {
-                        ShaderType::Rocky => rocky_planet_shader(&pos, &normal, time),
-                        ShaderType::Gas => gas_giant_shader(&pos, &normal, time),
-                        ShaderType::Crystal => crystal_planet_shader(&pos, &normal, time),
-                        ShaderType::Lava => lava_planet_shader(&pos, &normal, time),
-                        ShaderType::Ice => ice_planet_shader(&pos, &normal, time),
+                        ShaderType::Star => star_shader(&pos, &normal, time),
+                        // si se agregan otros shaders, aquí se pueden mapear
+                        _ => star_shader(&pos, &normal, time),
                     };
-                    
+
                     framebuffer.set_pixel_with_color(x, y, color);
                 }
             }
@@ -95,7 +95,8 @@ pub fn draw_filled_triangle(
 }
 
 fn project(v: &Vector3, width: f32, height: f32, scale: f32) -> Vector2 {
-    let fov = 1.0 / (v.z + 3.0);
+    // Proyección simple tipo cámara frontal
+    let fov = 1.0 / (v.z + 3.0).max(0.0001);
     let x = width / 2.0 + v.x * scale * fov * width / 2.0;
     let y = height / 2.0 - v.y * scale * fov * height / 2.0;
     Vector2::new(x, y)
